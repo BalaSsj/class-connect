@@ -1,32 +1,15 @@
 import {
-  LayoutDashboard,
-  Building2,
-  Users,
-  BookOpen,
-  Calendar,
-  GraduationCap,
-  ClipboardList,
-  Shuffle,
-  Bell,
-  LogOut,
-  Layers,
-  FlaskConical,
-  FileText,
+  LayoutDashboard, Building2, Users, BookOpen, Calendar, GraduationCap,
+  ClipboardList, Shuffle, Bell, LogOut, Layers, FlaskConical,
+  User, BarChart3, Brain,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
+  SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const adminLinks = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -35,12 +18,13 @@ const adminLinks = [
   { title: "Subjects", url: "/admin/subjects", icon: BookOpen },
   { title: "Faculty", url: "/admin/faculty", icon: Users },
   { title: "Timetable", url: "/admin/timetable", icon: Calendar },
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
 const hodLinks = [
   { title: "Dashboard", url: "/hod", icon: LayoutDashboard },
   { title: "Leave Requests", url: "/hod/leave-requests", icon: ClipboardList },
-  { title: "Reallocations", url: "/hod/reallocations", icon: Shuffle },
+  { title: "Reallocations", url: "/hod/reallocations", icon: Brain },
   { title: "Faculty", url: "/hod/faculty", icon: Users },
 ];
 
@@ -65,6 +49,13 @@ export function AppSidebar() {
     primaryRole === "admin" ? "Administrator" :
     primaryRole === "hod" ? "Head of Department" :
     "Faculty";
+
+  const initials = (user?.user_metadata?.full_name || user?.email || "?")
+    .split(/[@\s]/)
+    .map((s: string) => s[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <Sidebar>
@@ -104,22 +95,46 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase text-[10px] tracking-wider">
+            Account
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/profile"} tooltip="Profile">
+                  <NavLink to="/profile">
+                    <User className="h-4 w-4" />
+                    <span>My Profile</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-sidebar-foreground/50 truncate px-2">
-            {user?.email}
-          </p>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={signOut} tooltip="Sign Out">
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+        <div className="flex items-center gap-3 px-2 mb-2">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-sidebar-foreground truncate">
+              {user?.user_metadata?.full_name || "User"}
+            </p>
+            <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email}</p>
+          </div>
         </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={signOut} tooltip="Sign Out">
+              <LogOut className="h-4 w-4" />
+              <span>Sign Out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
