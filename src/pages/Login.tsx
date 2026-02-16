@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import { GraduationCap, ShieldCheck, Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Mail, KeyRound, ArrowLeft, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import collegeLogo from "@/assets/college-logo.jpg";
 
 type View = "login" | "otp-request" | "otp-verify" | "reset-request" | "reset-confirm";
 
@@ -20,8 +21,17 @@ export default function Login() {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [view, setView] = useState<View>("login");
-  const { signIn } = useAuth();
+  const { signIn, user, loading, primaryRole } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect authenticated users — fixes the "double login" issue
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    if (primaryRole === "admin") navigate("/admin", { replace: true });
+    else if (primaryRole === "hod") navigate("/hod", { replace: true });
+    else if (primaryRole === "faculty") navigate("/faculty", { replace: true });
+  }, [user, loading, primaryRole, navigate]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +42,7 @@ export default function Login() {
       toast.error(error.message);
     } else {
       toast.success("Login successful!");
-      navigate("/");
+      // Navigation handled by useEffect above after roles load
     }
   };
 
@@ -58,7 +68,6 @@ export default function Login() {
       toast.error(error.message);
     } else {
       toast.success("Login successful!");
-      navigate("/");
     }
   };
 
@@ -90,37 +99,81 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-32 -right-32 w-96 h-96 rounded-full border border-primary/10"
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full border border-primary/5"
+        />
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-primary/20 animate-pulse" />
+        <div className="absolute top-3/4 right-1/3 w-1.5 h-1.5 rounded-full bg-primary/15 animate-pulse delay-1000" />
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md space-y-8"
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="w-full max-w-md space-y-6 relative z-10"
       >
-        {/* Header */}
-        <div className="text-center space-y-2">
+        {/* College Branding Header */}
+        <div className="text-center space-y-3">
           <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring" }}
-            className="mx-auto w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg"
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            className="mx-auto w-24 h-24 rounded-full overflow-hidden border-4 border-primary/20 shadow-xl shadow-primary/10 bg-card"
           >
-            <GraduationCap className="h-8 w-8 text-primary-foreground" />
+            <img src={collegeLogo} alt="Adhiyamaan College of Engineering" className="w-full h-full object-cover" />
           </motion.div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">AIRS</h1>
-          <p className="text-sm text-muted-foreground">AI-Based Intelligent Faculty Reallocation System</p>
-          <p className="text-xs text-muted-foreground">Adhiyamaan College of Engineering — Dept. of CSE</p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-1"
+          >
+            <h1 className="text-xl font-extrabold tracking-tight text-primary uppercase">
+              Adhiyamaan College of Engineering
+            </h1>
+            <p className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">Hosur</p>
+            <div className="flex items-center justify-center gap-1.5 pt-1">
+              <div className="h-px w-8 bg-gradient-to-r from-transparent to-primary/40" />
+              <Sparkles className="h-3 w-3 text-primary/60" />
+              <span className="text-[10px] font-bold text-primary/70 tracking-[0.2em] uppercase">Achieve · Create · Excel</span>
+              <Sparkles className="h-3 w-3 text-primary/60" />
+              <div className="h-px w-8 bg-gradient-to-l from-transparent to-primary/40" />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs font-semibold text-primary">AIRS — Intelligent Faculty Reallocation</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">Department of Computer Science & Engineering</p>
+          </motion.div>
         </div>
 
         <AnimatePresence mode="wait">
           {view === "login" && (
-            <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              <Card className="border-border/50 shadow-lg backdrop-blur">
+            <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
+              <Card className="border-border/50 shadow-2xl shadow-primary/5 backdrop-blur-sm bg-card/95">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-primary" /> Sign In
                   </CardTitle>
-                  <CardDescription>Choose your preferred login method</CardDescription>
+                  <CardDescription>Choose your preferred authentication method</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="password" className="space-y-4">
@@ -131,30 +184,35 @@ export default function Login() {
                     <TabsContent value="password">
                       <form onSubmit={handlePasswordLogin} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input id="email" type="email" placeholder="you@adhiyamaan.ac.in" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input id="email" type="email" placeholder="you@adhiyamaan.ac.in" value={email} onChange={(e) => setEmail(e.target.value)} required className="transition-all focus:shadow-md focus:shadow-primary/10" />
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label htmlFor="password">Password</Label>
-                            <button type="button" onClick={() => setView("reset-request")} className="text-xs text-primary hover:underline">
+                            <button type="button" onClick={() => setView("reset-request")} className="text-xs text-primary hover:underline font-medium">
                               Forgot password?
                             </button>
                           </div>
-                          <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                          <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="transition-all focus:shadow-md focus:shadow-primary/10" />
                         </div>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                          {isLoading ? "Signing in..." : "Sign In"}
+                        <Button type="submit" className="w-full font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all" disabled={isLoading}>
+                          {isLoading ? (
+                            <span className="flex items-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                              Signing in...
+                            </span>
+                          ) : "Sign In"}
                         </Button>
                       </form>
                     </TabsContent>
                     <TabsContent value="otp">
                       <form onSubmit={handleOtpRequest} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="otp-email">Email</Label>
-                          <Input id="otp-email" type="email" placeholder="you@adhiyamaan.ac.in" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                          <Label htmlFor="otp-email">Email Address</Label>
+                          <Input id="otp-email" type="email" placeholder="you@adhiyamaan.ac.in" value={email} onChange={(e) => setEmail(e.target.value)} required className="transition-all focus:shadow-md focus:shadow-primary/10" />
                         </div>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
+                        <Button type="submit" className="w-full font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all" disabled={isLoading}>
                           {isLoading ? "Sending OTP..." : "Send OTP"}
                         </Button>
                       </form>
@@ -166,10 +224,10 @@ export default function Login() {
           )}
 
           {view === "otp-verify" && (
-            <motion.div key="otp-verify" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              <Card className="border-border/50 shadow-lg">
+            <motion.div key="otp-verify" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
+              <Card className="border-border/50 shadow-2xl shadow-primary/5 bg-card/95">
                 <CardHeader>
-                  <button onClick={() => setView("login")} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground">
+                  <button onClick={() => setView("login")} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors">
                     <ArrowLeft className="h-3 w-3" /> Back to login
                   </button>
                   <CardTitle className="text-lg">Enter OTP</CardTitle>
@@ -185,7 +243,7 @@ export default function Login() {
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
-                  <Button className="w-full" onClick={handleOtpVerify} disabled={isLoading || otp.length !== 6}>
+                  <Button className="w-full font-semibold" onClick={handleOtpVerify} disabled={isLoading || otp.length !== 6}>
                     {isLoading ? "Verifying..." : "Verify OTP"}
                   </Button>
                 </CardContent>
@@ -194,10 +252,10 @@ export default function Login() {
           )}
 
           {view === "reset-request" && (
-            <motion.div key="reset" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              <Card className="border-border/50 shadow-lg">
+            <motion.div key="reset" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
+              <Card className="border-border/50 shadow-2xl shadow-primary/5 bg-card/95">
                 <CardHeader>
-                  <button onClick={() => setView("login")} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground">
+                  <button onClick={() => setView("login")} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors">
                     <ArrowLeft className="h-3 w-3" /> Back to login
                   </button>
                   <CardTitle className="text-lg">Reset Password</CardTitle>
@@ -209,7 +267,7 @@ export default function Login() {
                       <Label>Email</Label>
                       <Input type="email" placeholder="you@adhiyamaan.ac.in" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+                    <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
                       {isLoading ? "Sending..." : "Send Reset Link"}
                     </Button>
                   </form>
@@ -219,9 +277,14 @@ export default function Login() {
           )}
         </AnimatePresence>
 
-        <p className="text-center text-xs text-muted-foreground">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-center text-[11px] text-muted-foreground"
+        >
           Contact your administrator if you need an account
-        </p>
+        </motion.p>
       </motion.div>
     </div>
   );
