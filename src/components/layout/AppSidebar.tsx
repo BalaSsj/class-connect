@@ -31,6 +31,8 @@ const hodLinks = [
 const facultyLinks = [
   { title: "Dashboard", url: "/faculty", icon: LayoutDashboard },
   { title: "My Timetable", url: "/faculty/timetable", icon: Calendar },
+  { title: "Syllabus Tracker", url: "/faculty/syllabus", icon: BookOpen },
+  { title: "My Substitutions", url: "/faculty/my-reallocations", icon: Shuffle },
   { title: "Leave / OD", url: "/faculty/leave", icon: ClipboardList },
   { title: "Lab Manuals", url: "/faculty/lab-manuals", icon: FlaskConical },
   { title: "Notifications", url: "/faculty/notifications", icon: Bell },

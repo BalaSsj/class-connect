@@ -396,6 +396,66 @@ export type Database = {
           },
         ]
       }
+      syllabus_topics: {
+        Row: {
+          covered_by: string | null
+          covered_date: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_covered: boolean
+          notes: string | null
+          subject_id: string
+          title: string
+          topic_number: number
+          unit_number: number
+          updated_at: string
+        }
+        Insert: {
+          covered_by?: string | null
+          covered_date?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_covered?: boolean
+          notes?: string | null
+          subject_id: string
+          title: string
+          topic_number: number
+          unit_number?: number
+          updated_at?: string
+        }
+        Update: {
+          covered_by?: string | null
+          covered_date?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_covered?: boolean
+          notes?: string | null
+          subject_id?: string
+          title?: string
+          topic_number?: number
+          unit_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "syllabus_topics_covered_by_fkey"
+            columns: ["covered_by"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_topics_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timetable_slots: {
         Row: {
           created_at: string
