@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Building2, Users, BookOpen, Calendar, GraduationCap,
   ClipboardList, Shuffle, Bell, LogOut, Layers, FlaskConical,
-  User, BarChart3, Brain,
+  User, BarChart3, Brain, Megaphone, FileText, ClipboardCheck,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,10 +24,17 @@ const adminLinks = [
 
 const hodLinks = [
   { title: "Dashboard", url: "/hod", icon: LayoutDashboard },
-  { title: "Syllabus Management", url: "/hod/syllabus", icon: BookOpen },
+  { title: "Dept Subjects", url: "/hod/subjects", icon: BookOpen },
+  { title: "Dept Timetable", url: "/hod/timetable", icon: Calendar },
+  { title: "Dept Faculty", url: "/hod/faculty-manage", icon: Users },
+  { title: "Syllabus Mgmt", url: "/hod/syllabus", icon: BookOpen },
+  { title: "Attendance", url: "/hod/attendance", icon: ClipboardCheck },
+  { title: "Exam Schedule", url: "/hod/exams", icon: FileText },
+  { title: "Announcements", url: "/hod/announcements", icon: Megaphone },
+  { title: "Dept Reports", url: "/hod/reports", icon: BarChart3 },
   { title: "Leave Requests", url: "/hod/leave-requests", icon: ClipboardList },
   { title: "Reallocations", url: "/hod/reallocations", icon: Brain },
-  { title: "Faculty", url: "/hod/faculty", icon: Users },
+  { title: "Faculty Overview", url: "/hod/faculty", icon: GraduationCap },
   { title: "Faculty Directory", url: "/hod/faculty-directory", icon: GraduationCap },
 ];
 
@@ -52,7 +59,7 @@ export function AppSidebar() {
 
   const roleLabel =
     primaryRole === "admin" ? "Administrator" :
-    primaryRole === "hod" ? "Head of Department" :
+    primaryRole === "hod" ? "Dept Admin (HOD)" :
     "Faculty";
 
   const initials = (user?.user_metadata?.full_name || user?.email || "?")
@@ -84,7 +91,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {links.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.url}

@@ -22,6 +22,13 @@ import LeaveRequestsPage from "./pages/hod/LeaveRequestsPage";
 import ReallocationPage from "./pages/hod/ReallocationPage";
 import HodFacultyPage from "./pages/hod/HodFacultyPage";
 import SyllabusManagementPage from "./pages/hod/SyllabusManagementPage";
+import HodSubjectsPage from "./pages/hod/HodSubjectsPage";
+import HodTimetablePage from "./pages/hod/HodTimetablePage";
+import HodFacultyManagePage from "./pages/hod/HodFacultyManagePage";
+import AttendancePage from "./pages/hod/AttendancePage";
+import ExamSchedulePage from "./pages/hod/ExamSchedulePage";
+import AnnouncementsPage from "./pages/hod/AnnouncementsPage";
+import DeptReportsPage from "./pages/hod/DeptReportsPage";
 import FacultyFilterPage from "./pages/shared/FacultyFilterPage";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 import FacultyTimetablePage from "./pages/faculty/FacultyTimetablePage";
@@ -76,12 +83,10 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
 
-            {/* Profile (any authenticated user) */}
             <Route element={<ProfileLayout />}>
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
 
-            {/* Admin routes */}
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/departments" element={<DepartmentsPage />} />
@@ -93,17 +98,22 @@ const App = () => (
               <Route path="/admin/analytics" element={<AnalyticsPage />} />
             </Route>
 
-            {/* HOD routes */}
             <Route element={<HodLayout />}>
               <Route path="/hod" element={<HodDashboard />} />
+              <Route path="/hod/subjects" element={<HodSubjectsPage />} />
+              <Route path="/hod/timetable" element={<HodTimetablePage />} />
+              <Route path="/hod/faculty-manage" element={<HodFacultyManagePage />} />
               <Route path="/hod/syllabus" element={<SyllabusManagementPage />} />
+              <Route path="/hod/attendance" element={<AttendancePage />} />
+              <Route path="/hod/exams" element={<ExamSchedulePage />} />
+              <Route path="/hod/announcements" element={<AnnouncementsPage />} />
+              <Route path="/hod/reports" element={<DeptReportsPage />} />
               <Route path="/hod/leave-requests" element={<LeaveRequestsPage />} />
               <Route path="/hod/reallocations" element={<ReallocationPage />} />
               <Route path="/hod/faculty" element={<HodFacultyPage />} />
               <Route path="/hod/faculty-directory" element={<FacultyFilterPage />} />
             </Route>
 
-            {/* Faculty routes */}
             <Route element={<FacultyLayout />}>
               <Route path="/faculty" element={<FacultyDashboard />} />
               <Route path="/faculty/timetable" element={<FacultyTimetablePage />} />
