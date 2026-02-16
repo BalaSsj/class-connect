@@ -14,6 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          department_id: string | null
+          expires_at: string | null
+          id: string
+          is_pinned: boolean
+          priority: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          department_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean
+          priority?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          department_id?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean
+          priority?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          faculty_id: string
+          id: string
+          marked_by: string | null
+          notes: string | null
+          status: string
+          timetable_slot_id: string
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          faculty_id: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: string
+          timetable_slot_id: string
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          faculty_id?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          status?: string
+          timetable_slot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_timetable_slot_id_fkey"
+            columns: ["timetable_slot_id"]
+            isOneToOne: false
+            referencedRelation: "timetable_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -34,6 +129,76 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      exam_schedules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_time: string
+          exam_date: string
+          exam_type: string
+          id: string
+          invigilator_id: string | null
+          notes: string | null
+          room: string | null
+          start_time: string
+          subject_id: string
+          updated_at: string
+          year_section_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          exam_date: string
+          exam_type?: string
+          id?: string
+          invigilator_id?: string | null
+          notes?: string | null
+          room?: string | null
+          start_time?: string
+          subject_id: string
+          updated_at?: string
+          year_section_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          exam_date?: string
+          exam_type?: string
+          id?: string
+          invigilator_id?: string | null
+          notes?: string | null
+          room?: string | null
+          start_time?: string
+          subject_id?: string
+          updated_at?: string
+          year_section_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_schedules_invigilator_id_fkey"
+            columns: ["invigilator_id"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_schedules_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_schedules_year_section_id_fkey"
+            columns: ["year_section_id"]
+            isOneToOne: false
+            referencedRelation: "years_sections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       faculty: {
         Row: {
