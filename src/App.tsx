@@ -26,6 +26,8 @@ import FacultyTimetablePage from "./pages/faculty/FacultyTimetablePage";
 import LeaveApplicationPage from "./pages/faculty/LeaveApplicationPage";
 import LabManualsPage from "./pages/faculty/LabManualsPage";
 import NotificationsPage from "./pages/faculty/NotificationsPage";
+import SyllabusPage from "./pages/faculty/SyllabusPage";
+import MyReallocationsPage from "./pages/faculty/MyReallocationsPage";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +102,8 @@ const App = () => (
             <Route element={<FacultyLayout />}>
               <Route path="/faculty" element={<FacultyDashboard />} />
               <Route path="/faculty/timetable" element={<FacultyTimetablePage />} />
+              <Route path="/faculty/syllabus" element={<SyllabusPage />} />
+              <Route path="/faculty/my-reallocations" element={<MyReallocationsPage />} />
               <Route path="/faculty/leave" element={<LeaveApplicationPage />} />
               <Route path="/faculty/lab-manuals" element={<LabManualsPage />} />
               <Route path="/faculty/notifications" element={<NotificationsPage />} />
