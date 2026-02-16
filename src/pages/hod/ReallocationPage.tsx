@@ -40,12 +40,29 @@ export default function ReallocationPage() {
     // Notify substitute faculty
     const realloc = reallocations.find((r) => r.id === id);
     if (realloc && status === "approved") {
+      // Get next uncovered topics for the subject
+      const subjectId = realloc.timetable_slots?.subject_id;
+      let nextTopicsMsg = "";
+      if (subjectId) {
+        const { data: nextTopics } = await supabase
+          .from("syllabus_topics")
+          .select("title, unit_number, topic_number")
+          .eq("subject_id", subjectId)
+          .eq("is_covered", false)
+          .order("unit_number")
+          .order("topic_number")
+          .limit(3);
+        if (nextTopics && nextTopics.length > 0) {
+          nextTopicsMsg = `\n\nNext topics to cover:\n${nextTopics.map((t: any) => `• U${t.unit_number} T${t.topic_number}: ${t.title}`).join("\n")}`;
+        }
+      }
+
       const { data: subFac } = await supabase.from("faculty").select("user_id").eq("id", realloc.substitute_faculty_id).single();
       if (subFac?.user_id) {
         await supabase.from("notifications").insert({
           user_id: subFac.user_id,
           title: "Reallocation Assignment",
-          message: `You have been assigned to substitute for ${realloc.original?.full_name} on ${realloc.reallocation_date} (${realloc.timetable_slots?.subjects?.name})`,
+          message: `You have been assigned to substitute for ${realloc.original?.full_name} on ${realloc.reallocation_date} (${realloc.timetable_slots?.subjects?.name})${nextTopicsMsg}`,
           type: "info",
         });
       }

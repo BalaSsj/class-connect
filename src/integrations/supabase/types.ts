@@ -362,6 +362,7 @@ export type Database = {
           is_lab: boolean
           name: string
           semester: number
+          syllabus_pdf_url: string | null
           year: number
         }
         Insert: {
@@ -373,6 +374,7 @@ export type Database = {
           is_lab?: boolean
           name: string
           semester: number
+          syllabus_pdf_url?: string | null
           year: number
         }
         Update: {
@@ -384,6 +386,7 @@ export type Database = {
           is_lab?: boolean
           name?: string
           semester?: number
+          syllabus_pdf_url?: string | null
           year?: number
         }
         Relationships: [
@@ -398,6 +401,7 @@ export type Database = {
       }
       syllabus_topics: {
         Row: {
+          assigned_by: string | null
           covered_by: string | null
           covered_date: string | null
           created_at: string
@@ -405,6 +409,7 @@ export type Database = {
           id: string
           is_covered: boolean
           notes: string | null
+          scheduled_date: string | null
           subject_id: string
           title: string
           topic_number: number
@@ -412,6 +417,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_by?: string | null
           covered_by?: string | null
           covered_date?: string | null
           created_at?: string
@@ -419,6 +425,7 @@ export type Database = {
           id?: string
           is_covered?: boolean
           notes?: string | null
+          scheduled_date?: string | null
           subject_id: string
           title: string
           topic_number: number
@@ -426,6 +433,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_by?: string | null
           covered_by?: string | null
           covered_date?: string | null
           created_at?: string
@@ -433,6 +441,7 @@ export type Database = {
           id?: string
           is_covered?: boolean
           notes?: string | null
+          scheduled_date?: string | null
           subject_id?: string
           title?: string
           topic_number?: number

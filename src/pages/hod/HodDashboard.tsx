@@ -2,30 +2,38 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, Shuffle, Users, Calendar, TrendingUp } from "lucide-react";
+import { ClipboardList, Shuffle, Users, Calendar, TrendingUp, BookOpen } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 
 export default function HodDashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ pendingLeaves: 0, activeReallocations: 0, activeFaculty: 0, totalSlots: 0 });
+  const [stats, setStats] = useState({ pendingLeaves: 0, activeReallocations: 0, activeFaculty: 0, totalSlots: 0, syllabusPct: 0 });
   const [recentLeaves, setRecentLeaves] = useState<any[]>([]);
+  const [todayTopics, setTodayTopics] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
-      const [pl, ar, af, ts, rl] = await Promise.all([
+      const [pl, ar, af, ts, rl, allTopics, today] = await Promise.all([
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("reallocations").select("id", { count: "exact", head: true }).in("status", ["suggested", "approved"]),
         supabase.from("faculty").select("id", { count: "exact", head: true }).eq("is_active", true),
         supabase.from("timetable_slots").select("id", { count: "exact", head: true }),
         supabase.from("leave_requests").select("*, faculty(full_name)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("syllabus_topics").select("is_covered"),
+        supabase.from("syllabus_topics").select("*, subjects(name, code)").eq("scheduled_date", new Date().toISOString().split("T")[0]),
       ]);
+      const total = allTopics.data?.length || 0;
+      const covered = allTopics.data?.filter((t: any) => t.is_covered).length || 0;
       setStats({
         pendingLeaves: pl.count || 0,
         activeReallocations: ar.count || 0,
         activeFaculty: af.count || 0,
         totalSlots: ts.count || 0,
+        syllabusPct: total > 0 ? Math.round((covered / total) * 100) : 0,
       });
       if (rl.data) setRecentLeaves(rl.data);
+      if (today.data) setTodayTopics(today.data);
     };
     load();
   }, []);
@@ -35,6 +43,7 @@ export default function HodDashboard() {
     { label: "Active Reallocations", value: stats.activeReallocations, icon: Shuffle, color: "text-primary" },
     { label: "Active Faculty", value: stats.activeFaculty, icon: Users, color: "text-success" },
     { label: "Timetable Slots", value: stats.totalSlots, icon: Calendar, color: "text-primary" },
+    { label: "Syllabus Done", value: `${stats.syllabusPct}%`, icon: BookOpen, color: "text-primary" },
   ];
 
   return (
@@ -57,6 +66,31 @@ export default function HodDashboard() {
           </motion.div>
         ))}
       </div>
+
+      {todayTopics.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><BookOpen className="h-4 w-4 text-primary" />Today's Syllabus Topics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {todayTopics.map((t: any) => (
+                  <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                    <div>
+                      <div className="text-sm font-medium">{t.title}</div>
+                      <div className="text-xs text-muted-foreground">{(t.subjects as any)?.code} • Unit {t.unit_number}</div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${t.is_covered ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                      {t.is_covered ? "Completed" : "Pending"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
         <Card>

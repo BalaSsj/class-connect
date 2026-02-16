@@ -17,15 +17,18 @@ const adminLinks = [
   { title: "Years & Sections", url: "/admin/years-sections", icon: Layers },
   { title: "Subjects", url: "/admin/subjects", icon: BookOpen },
   { title: "Faculty", url: "/admin/faculty", icon: Users },
+  { title: "Faculty Directory", url: "/admin/faculty-directory", icon: GraduationCap },
   { title: "Timetable", url: "/admin/timetable", icon: Calendar },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
 const hodLinks = [
   { title: "Dashboard", url: "/hod", icon: LayoutDashboard },
+  { title: "Syllabus Management", url: "/hod/syllabus", icon: BookOpen },
   { title: "Leave Requests", url: "/hod/leave-requests", icon: ClipboardList },
   { title: "Reallocations", url: "/hod/reallocations", icon: Brain },
   { title: "Faculty", url: "/hod/faculty", icon: Users },
+  { title: "Faculty Directory", url: "/hod/faculty-directory", icon: GraduationCap },
 ];
 
 const facultyLinks = [

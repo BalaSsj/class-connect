@@ -21,6 +21,8 @@ import HodDashboard from "./pages/hod/HodDashboard";
 import LeaveRequestsPage from "./pages/hod/LeaveRequestsPage";
 import ReallocationPage from "./pages/hod/ReallocationPage";
 import HodFacultyPage from "./pages/hod/HodFacultyPage";
+import SyllabusManagementPage from "./pages/hod/SyllabusManagementPage";
+import FacultyFilterPage from "./pages/shared/FacultyFilterPage";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 import FacultyTimetablePage from "./pages/faculty/FacultyTimetablePage";
 import LeaveApplicationPage from "./pages/faculty/LeaveApplicationPage";
@@ -86,6 +88,7 @@ const App = () => (
               <Route path="/admin/years-sections" element={<YearsSectionsPage />} />
               <Route path="/admin/subjects" element={<SubjectsPage />} />
               <Route path="/admin/faculty" element={<FacultyPage />} />
+              <Route path="/admin/faculty-directory" element={<FacultyFilterPage />} />
               <Route path="/admin/timetable" element={<TimetablePage />} />
               <Route path="/admin/analytics" element={<AnalyticsPage />} />
             </Route>
@@ -93,9 +96,11 @@ const App = () => (
             {/* HOD routes */}
             <Route element={<HodLayout />}>
               <Route path="/hod" element={<HodDashboard />} />
+              <Route path="/hod/syllabus" element={<SyllabusManagementPage />} />
               <Route path="/hod/leave-requests" element={<LeaveRequestsPage />} />
               <Route path="/hod/reallocations" element={<ReallocationPage />} />
               <Route path="/hod/faculty" element={<HodFacultyPage />} />
+              <Route path="/hod/faculty-directory" element={<FacultyFilterPage />} />
             </Route>
 
             {/* Faculty routes */}
