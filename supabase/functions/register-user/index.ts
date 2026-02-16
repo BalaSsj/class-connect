@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Create auth user
+  // Create auth user or find existing
+  let userId: string;
   const { data: userData, error: createError } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -64,13 +65,26 @@ Deno.serve(async (req) => {
   });
 
   if (createError) {
-    return new Response(JSON.stringify({ error: createError.message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (createError.message.includes("already been registered")) {
+      // Find existing user
+      const { data: { users } } = await supabase.auth.admin.listUsers();
+      const existing = users?.find((u) => u.email === email);
+      if (!existing) {
+        return new Response(JSON.stringify({ error: "User exists but could not be found" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = existing.id;
+    } else {
+      return new Response(JSON.stringify({ error: createError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } else {
+    userId = userData.user.id;
   }
-
-  const userId = userData.user.id;
 
   // Assign role
   const { error: roleError } = await supabase
