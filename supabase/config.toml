@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.analyze-syllabus]
 verify_jwt = false
+
+[functions.ai-analytics]
+verify_jwt = false
