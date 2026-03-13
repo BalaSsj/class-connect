@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, ClipboardList } from "lucide-react";
+import { Plus, ClipboardList, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -41,9 +41,36 @@ export default function LeaveApplicationPage() {
     load();
   }, [user]);
 
+  const hasPendingLeave = leaves.some(l => l.status === "pending");
+
+  const hasOverlap = (startDate: string, endDate: string) => {
+    return leaves.some(l => {
+      if (l.status === "rejected") return false;
+      return l.start_date <= endDate && l.end_date >= startDate;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!faculty) { toast.error("Faculty profile not found"); return; }
+    
+    // Check for pending requests
+    if (hasPendingLeave) {
+      toast.error("You already have a pending leave request. Please wait for it to be processed.");
+      return;
+    }
+
+    // Check for overlapping dates
+    if (hasOverlap(form.start_date, form.end_date)) {
+      toast.error("You already have a leave request for overlapping dates.");
+      return;
+    }
+
+    if (form.start_date > form.end_date) {
+      toast.error("End date must be after start date");
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from("leave_requests").insert({
       faculty_id: faculty.id,
@@ -70,10 +97,18 @@ export default function LeaveApplicationPage() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Apply Leave</Button>
+            <Button disabled={hasPendingLeave}>
+              <Plus className="mr-2 h-4 w-4" />Apply Leave
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
+            {hasPendingLeave && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                <span className="text-sm text-amber-700 dark:text-amber-300">You already have a pending leave request.</span>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Leave Type</Label>
@@ -101,7 +136,7 @@ export default function LeaveApplicationPage() {
                 <Label>Reason</Label>
                 <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Provide reason..." required rows={3} />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || hasPendingLeave}>
                 {loading ? "Submitting..." : "Submit Request"}
               </Button>
             </form>
