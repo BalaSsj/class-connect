@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.ai-analytics]
 verify_jwt = false
+
+[functions.ai-syllabus-predict]
+verify_jwt = false
+
+[functions.ai-reallocate]
+verify_jwt = false
