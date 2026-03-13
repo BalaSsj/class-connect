@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,15 +12,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Upload, BookOpen, CheckCircle, Calendar, Brain, FileText } from "lucide-react";
+import { Upload, BookOpen, CheckCircle, Calendar, Brain, FileText, Send, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SyllabusManagementPage() {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [topics, setTopics] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [predicting, setPredicting] = useState(false);
+  const [predictions, setPredictions] = useState<any>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignDate, setAssignDate] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -39,7 +43,7 @@ export default function SyllabusManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedSubject) loadTopics();
+    if (selectedSubject) { loadTopics(); setPredictions(null); }
   }, [selectedSubject]);
 
   const loadTopics = async () => {
@@ -57,75 +61,68 @@ export default function SyllabusManagementPage() {
     const subject = subjects.find(s => s.id === selectedSubject);
     
     setUploading(true);
-    // Upload PDF to storage
     const fileName = `${selectedSubject}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("syllabus-pdfs")
-      .upload(fileName, file);
-    
-    if (uploadError) {
-      toast.error("Upload failed: " + uploadError.message);
-      setUploading(false);
-      return;
-    }
-
+    const { error: uploadError } = await supabase.storage.from("syllabus-pdfs").upload(fileName, file);
+    if (uploadError) { toast.error("Upload failed: " + uploadError.message); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from("syllabus-pdfs").getPublicUrl(fileName);
-    
-    // Update subject with PDF URL
     await supabase.from("subjects").update({ syllabus_pdf_url: urlData.publicUrl }).eq("id", selectedSubject);
     
     setUploading(false);
     setAnalyzing(true);
     toast.info("Analyzing syllabus with AI...");
-
-    // Read PDF text (using basic text extraction from the file)
     const text = await file.text();
     
     const { data, error } = await supabase.functions.invoke("analyze-syllabus", {
       body: { syllabus_text: text, subject_id: selectedSubject, subject_name: subject?.name },
     });
-
     setAnalyzing(false);
-    if (error) {
-      toast.error("Analysis failed: " + error.message);
-      return;
-    }
-    if (data?.error) {
-      toast.error(data.error);
-      return;
-    }
-
+    if (error) { toast.error("Analysis failed: " + error.message); return; }
+    if (data?.error) { toast.error(data.error); return; }
     toast.success(`Extracted ${data.topics_count} topics from syllabus!`);
     loadTopics();
   };
 
+  const handleAIPrediction = async () => {
+    if (!selectedSubject) return;
+    setPredicting(true);
+    const { data, error } = await supabase.functions.invoke("ai-syllabus-predict", {
+      body: { subject_id: selectedSubject },
+    });
+    setPredicting(false);
+    if (error) { toast.error("Prediction failed"); return; }
+    if (data?.error) { toast.error(data.error); return; }
+    setPredictions(data);
+    toast.success("AI predictions generated!");
+  };
+
+  const handleNotifyFaculty = async () => {
+    if (!selectedSubject || !selectedFaculty) { toast.error("Select subject and faculty"); return; }
+    const { data, error } = await supabase.functions.invoke("ai-syllabus-predict", {
+      body: { subject_id: selectedSubject, faculty_id: selectedFaculty },
+    });
+    if (error) { toast.error("Failed to notify"); return; }
+    toast.success("Faculty notified with AI teaching recommendations!");
+  };
+
   const handleMarkCompleted = async (topicId: string, covered: boolean) => {
-    const { error } = await supabase
-      .from("syllabus_topics")
-      .update({
-        is_covered: covered,
-        covered_date: covered ? new Date().toISOString().split("T")[0] : null,
-      })
-      .eq("id", topicId);
+    const { error } = await supabase.from("syllabus_topics").update({
+      is_covered: covered,
+      covered_date: covered ? new Date().toISOString().split("T")[0] : null,
+    }).eq("id", topicId);
     if (error) toast.error(error.message);
     else loadTopics();
   };
 
   const handleAssignTopics = async () => {
-    if (!assignDate || selectedTopics.length === 0) {
-      toast.error("Select date and topics");
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
+    if (!assignDate || selectedTopics.length === 0) { toast.error("Select date and topics"); return; }
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
     const updates = selectedTopics.map(id =>
       supabase.from("syllabus_topics").update({
         scheduled_date: assignDate,
-        assigned_by: user?.id,
+        assigned_by: currentUser?.id,
         covered_by: selectedFaculty || null,
       }).eq("id", id)
     );
-
     await Promise.all(updates);
     toast.success(`Assigned ${selectedTopics.length} topics for ${assignDate}`);
     setAssignOpen(false);
@@ -152,7 +149,7 @@ export default function SyllabusManagementPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Syllabus Management</h1>
-          <p className="text-muted-foreground">Upload syllabus, track daily topic completion</p>
+          <p className="text-muted-foreground">Upload syllabus, AI predictions & daily topic tracking</p>
         </div>
       </div>
 
@@ -169,23 +166,14 @@ export default function SyllabusManagementPage() {
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                   <SelectContent>
-                    {subjects.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.code} - {s.name}</SelectItem>
-                    ))}
+                    {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.code} - {s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Upload Syllabus PDF</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.txt,.doc,.docx"
-                  disabled={!selectedSubject || uploading || analyzing}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadAndAnalyze(file);
-                  }}
-                />
+                <Input type="file" accept=".pdf,.txt,.doc,.docx" disabled={!selectedSubject || uploading || analyzing}
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadAndAnalyze(file); }} />
               </div>
             </div>
             {(uploading || analyzing) && (
@@ -199,9 +187,7 @@ export default function SyllabusManagementPage() {
 
         {selectedSubject && totalCount > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Completion</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Completion</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="text-3xl font-bold">{progressPct}%</div>
               <Progress value={progressPct} className="h-3" />
@@ -210,6 +196,46 @@ export default function SyllabusManagementPage() {
           </Card>
         )}
       </div>
+
+      {/* AI Prediction Section */}
+      {selectedSubject && totalCount > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" />AI Teaching Predictions</span>
+              <div className="flex gap-2">
+                <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
+                  <SelectTrigger className="w-48 h-8 text-xs"><SelectValue placeholder="Select faculty" /></SelectTrigger>
+                  <SelectContent>{faculty.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}</SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={handleNotifyFaculty} disabled={!selectedFaculty || predicting}>
+                  <Send className="h-3 w-3 mr-1" />Notify
+                </Button>
+                <Button size="sm" onClick={handleAIPrediction} disabled={predicting}>
+                  <Brain className="h-3 w-3 mr-1" />{predicting ? "Predicting..." : "Get Predictions"}
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          {predictions && (
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">{predictions.overall_progress_note}</p>
+              <div className="space-y-2">
+                {predictions.predictions?.map((p: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                    <Badge variant={p.priority === "high" ? "destructive" : p.priority === "medium" ? "default" : "secondary"} className="text-[10px] mt-0.5">{p.priority}</Badge>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">U{p.unit_number} T{p.topic_number}: {p.title}</div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.teaching_strategy}</p>
+                      {p.estimated_periods && <span className="text-[10px] text-muted-foreground">~{p.estimated_periods} periods</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Today's Topics */}
       {todayTopics.length > 0 && (
@@ -223,18 +249,13 @@ export default function SyllabusManagementPage() {
                 {todayTopics.map(t => (
                   <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
                     <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={t.is_covered}
-                        onCheckedChange={(v) => handleMarkCompleted(t.id, !!v)}
-                      />
+                      <Checkbox checked={t.is_covered} onCheckedChange={(v) => handleMarkCompleted(t.id, !!v)} />
                       <div>
                         <span className="text-sm font-medium">{t.title}</span>
                         <span className="text-xs text-muted-foreground ml-2">Unit {t.unit_number}</span>
                       </div>
                     </div>
-                    <Badge variant={t.is_covered ? "default" : "secondary"}>
-                      {t.is_covered ? "Completed" : "Pending"}
-                    </Badge>
+                    <Badge variant={t.is_covered ? "default" : "secondary"}>{t.is_covered ? "Completed" : "Pending"}</Badge>
                   </div>
                 ))}
               </div>
@@ -284,11 +305,7 @@ export default function SyllabusManagementPage() {
                     <Label>Faculty (optional)</Label>
                     <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
                       <SelectTrigger><SelectValue placeholder="Auto" /></SelectTrigger>
-                      <SelectContent>
-                        {faculty.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectContent>{faculty.map(f => <SelectItem key={f.id} value={f.id}>{f.full_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -296,14 +313,8 @@ export default function SyllabusManagementPage() {
                   <Label>Select Topics</Label>
                   {topics.filter(t => !t.is_covered).map(t => (
                     <div key={t.id} className="flex items-center gap-2 p-2 rounded border">
-                      <Checkbox
-                        checked={selectedTopics.includes(t.id)}
-                        onCheckedChange={(v) => {
-                          setSelectedTopics(prev =>
-                            v ? [...prev, t.id] : prev.filter(id => id !== t.id)
-                          );
-                        }}
-                      />
+                      <Checkbox checked={selectedTopics.includes(t.id)}
+                        onCheckedChange={(v) => setSelectedTopics(prev => v ? [...prev, t.id] : prev.filter(id => id !== t.id))} />
                       <span className="text-sm">U{t.unit_number} T{t.topic_number}: {t.title}</span>
                     </div>
                   ))}
@@ -344,13 +355,8 @@ export default function SyllabusManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {(unitTopics as any[]).map((t: any) => (
-                        <TableRow key={t.id} className={t.is_covered ? "bg-success/5" : ""}>
-                          <TableCell>
-                            <Checkbox
-                              checked={t.is_covered}
-                              onCheckedChange={(v) => handleMarkCompleted(t.id, !!v)}
-                            />
-                          </TableCell>
+                        <TableRow key={t.id} className={t.is_covered ? "bg-emerald-50/50 dark:bg-emerald-900/10" : ""}>
+                          <TableCell><Checkbox checked={t.is_covered} onCheckedChange={(v) => handleMarkCompleted(t.id, !!v)} /></TableCell>
                           <TableCell className="text-xs text-muted-foreground">{t.topic_number}</TableCell>
                           <TableCell>
                             <div className="text-sm font-medium">{t.title}</div>

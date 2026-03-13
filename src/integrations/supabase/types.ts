@@ -410,6 +410,41 @@ export type Database = {
         }
         Relationships: []
       }
+      period_timings: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          end_time: string
+          id: string
+          period_number: number
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          end_time: string
+          id?: string
+          period_number: number
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          end_time?: string
+          id?: string
+          period_number?: number
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_timings_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
