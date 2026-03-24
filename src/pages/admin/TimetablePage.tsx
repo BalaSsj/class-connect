@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Calendar, Plus, Trash2, AlertTriangle, Wand2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -37,6 +37,8 @@ export default function TimetablePage() {
   const [editSlot, setEditSlot] = useState<{ day: number; period: number } | null>(null);
   const [form, setForm] = useState({ subject_id: "", faculty_id: "", is_lab: false });
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const [autoResult, setAutoResult] = useState<any>(null);
   const colorMap = new Map<string, string>();
 
   const getSubjectColor = (subjectId: string) => {
@@ -55,30 +57,29 @@ export default function TimetablePage() {
     if (ys.data) setYearSections(ys.data);
     if (sub.data) setSubjects(sub.data);
     if (fac.data) setFaculty(fac.data);
-    // Fetch all slots for conflict detection
     const { data: all } = await supabase.from("timetable_slots").select("*");
     if (all) setAllSlots(all);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => {
+  const refreshSlots = useCallback(async () => {
     if (!selectedSection) { setSlots([]); return; }
-    const fetchSlots = async () => {
-      const { data } = await supabase
-        .from("timetable_slots")
-        .select("*, subjects(name, code, is_lab), faculty(full_name)")
-        .eq("year_section_id", selectedSection);
-      if (data) setSlots(data);
-    };
-    fetchSlots();
+    const { data } = await supabase
+      .from("timetable_slots")
+      .select("*, subjects(name, code, is_lab), faculty(full_name)")
+      .eq("year_section_id", selectedSection);
+    if (data) setSlots(data);
+    const { data: all } = await supabase.from("timetable_slots").select("*");
+    if (all) setAllSlots(all);
   }, [selectedSection]);
 
+  useEffect(() => { refreshSlots(); }, [refreshSlots]);
+
   const checkConflicts = (facultyId: string, day: number, period: number) => {
-    const conflicting = allSlots.filter(
+    return allSlots.filter(
       (s) => s.faculty_id === facultyId && s.day_of_week === day && s.period_number === period && s.year_section_id !== selectedSection
     );
-    return conflicting;
   };
 
   const handleCellClick = (day: number, period: number) => {
@@ -100,12 +101,10 @@ export default function TimetablePage() {
       setConflicts(c.map(() => "Faculty already assigned to another section at this time!"));
       return;
     }
-    // Delete existing slot if any
     await supabase.from("timetable_slots").delete()
       .eq("year_section_id", selectedSection)
       .eq("day_of_week", editSlot.day)
       .eq("period_number", editSlot.period);
-    // Insert new
     const { error } = await supabase.from("timetable_slots").insert({
       year_section_id: selectedSection,
       day_of_week: editSlot.day,
@@ -117,11 +116,7 @@ export default function TimetablePage() {
     if (error) { toast.error(error.message); return; }
     toast.success("Slot saved!");
     setDialogOpen(false);
-    // Refresh
-    const { data } = await supabase.from("timetable_slots").select("*, subjects(name, code, is_lab), faculty(full_name)").eq("year_section_id", selectedSection);
-    if (data) setSlots(data);
-    const { data: all } = await supabase.from("timetable_slots").select("*");
-    if (all) setAllSlots(all);
+    refreshSlots();
   };
 
   const handleDeleteSlot = async () => {
@@ -132,8 +127,65 @@ export default function TimetablePage() {
       .eq("period_number", editSlot.period);
     toast.success("Slot removed");
     setDialogOpen(false);
-    const { data } = await supabase.from("timetable_slots").select("*, subjects(name, code, is_lab), faculty(full_name)").eq("year_section_id", selectedSection);
-    if (data) setSlots(data);
+    refreshSlots();
+  };
+
+  const handleAutoAssign = async () => {
+    if (!selectedSection) return;
+    const section = yearSections.find(ys => ys.id === selectedSection);
+    if (!section) return;
+
+    const confirmed = window.confirm(
+      `This will auto-generate the entire timetable for ${(section.departments as any)?.name} — Year ${section.year} Sec ${section.section}.\n\nExisting slots for this section will be replaced.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
+    setAutoAssigning(true);
+    setAutoResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-timetable", {
+        body: { year_section_id: selectedSection, department_id: section.department_id },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      setAutoResult(data);
+      toast.success(`Auto-assigned ${data.total_slots} slots!`);
+      refreshSlots();
+    } catch (err: any) {
+      toast.error(err.message || "Auto-assign failed");
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
+  const handleAutoAssignAll = async () => {
+    const confirmed = window.confirm(
+      `This will auto-generate timetables for ALL ${yearSections.length} sections.\n\nAll existing timetable slots will be replaced.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
+    setAutoAssigning(true);
+    setAutoResult(null);
+    let totalSlots = 0;
+    const results: any[] = [];
+
+    for (const ys of yearSections) {
+      try {
+        const { data, error } = await supabase.functions.invoke("auto-timetable", {
+          body: { year_section_id: ys.id, department_id: ys.department_id },
+        });
+        if (error) throw error;
+        if (data?.total_slots) totalSlots += data.total_slots;
+        results.push({ section: `${(ys.departments as any)?.name} Y${ys.year} S${ys.section}`, slots: data?.total_slots || 0 });
+      } catch (err: any) {
+        results.push({ section: `Y${ys.year} S${ys.section}`, error: err.message });
+      }
+    }
+
+    setAutoResult({ total_slots: totalSlots, all_sections: results });
+    toast.success(`Auto-assigned ${totalSlots} total slots across ${yearSections.length} sections!`);
+    refreshSlots();
+    setAutoAssigning(false);
   };
 
   const getSlot = (day: number, period: number) => slots.find((s) => s.day_of_week === day && s.period_number === period);
@@ -143,31 +195,80 @@ export default function TimetablePage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Timetable Builder</h1>
-          <p className="text-muted-foreground">Assign 7 periods per day for each section</p>
+          <p className="text-muted-foreground">Assign 7 periods per day — manual or AI auto-assign</p>
         </div>
-        <Select value={selectedSection} onValueChange={setSelectedSection}>
-          <SelectTrigger className="w-64"><SelectValue placeholder="Select Section" /></SelectTrigger>
-          <SelectContent>
-            {yearSections.map((ys) => (
-              <SelectItem key={ys.id} value={ys.id}>
-                {(ys.departments as any)?.name} — Year {ys.year} Sec {ys.section}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={handleAutoAssignAll} variant="outline" disabled={autoAssigning || yearSections.length === 0}>
+            {autoAssigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+            Auto-Assign All
+          </Button>
+          <Select value={selectedSection} onValueChange={setSelectedSection}>
+            <SelectTrigger className="w-64"><SelectValue placeholder="Select Section" /></SelectTrigger>
+            <SelectContent>
+              {yearSections.map((ys) => (
+                <SelectItem key={ys.id} value={ys.id}>
+                  {(ys.departments as any)?.name} — Year {ys.year} Sec {ys.section}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {/* Auto-assign result summary */}
+      {autoResult && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Wand2 className="h-4 w-4 text-primary" /> Auto-Assignment Result
+                </h3>
+                <Badge variant="secondary">{autoResult.total_slots} slots</Badge>
+              </div>
+              {autoResult.summary && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {autoResult.summary.map((s: any, i: number) => (
+                    <div key={i} className="text-xs p-2 rounded bg-background border">
+                      <div className="font-medium">{s.code} — {s.subject}</div>
+                      <div className="text-muted-foreground">{s.periods} periods • {s.faculty}</div>
+                      {s.is_lab && <Badge variant="outline" className="text-[9px] mt-1">LAB</Badge>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {autoResult.all_sections && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {autoResult.all_sections.map((r: any, i: number) => (
+                    <div key={i} className={`text-xs p-2 rounded border ${r.error ? 'bg-destructive/10 border-destructive/20' : 'bg-background'}`}>
+                      <div className="font-medium">{r.section}</div>
+                      <div className="text-muted-foreground">{r.error || `${r.slots} slots assigned`}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {!selectedSection ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Select a section to view and edit its timetable
+            Select a section to view/edit, or use "Auto-Assign All" to generate timetables for every section
           </CardContent>
         </Card>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Calendar className="h-4 w-4" /> Weekly Timetable</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base"><Calendar className="h-4 w-4" /> Weekly Timetable</CardTitle>
+                <Button size="sm" onClick={handleAutoAssign} disabled={autoAssigning}>
+                  {autoAssigning ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
+                  Auto-Assign This Section
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[800px]">

@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ai-reallocate]
 verify_jwt = false
+
+[functions.auto-timetable]
+verify_jwt = false
