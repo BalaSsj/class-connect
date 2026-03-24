@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Plus, Trash2, AlertTriangle, Clock, Save } from "lucide-react";
+import { Calendar, Plus, Trash2, AlertTriangle, Clock, Save, Wand2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
