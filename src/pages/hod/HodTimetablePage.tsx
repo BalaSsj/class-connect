@@ -47,6 +47,7 @@ export default function HodTimetablePage() {
     })
   );
   const [timingsSaving, setTimingsSaving] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
   const colorMap = new Map<string, string>();
 
   const getSubjectColor = (subjectId: string) => {
