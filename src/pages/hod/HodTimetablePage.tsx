@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Calendar, Plus, Trash2, AlertTriangle, Clock, Save } from "lucide-react";
+import { Calendar, Plus, Trash2, AlertTriangle, Clock, Save, Wand2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -47,6 +47,7 @@ export default function HodTimetablePage() {
     })
   );
   const [timingsSaving, setTimingsSaving] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
   const colorMap = new Map<string, string>();
 
   const getSubjectColor = (subjectId: string) => {
@@ -169,13 +170,38 @@ export default function HodTimetablePage() {
     setTimingsOpen(false);
   };
 
+  const handleAutoAssign = async () => {
+    if (!selectedSection || !deptId) return;
+    const section = yearSections.find(ys => ys.id === selectedSection);
+    if (!section) return;
+    const confirmed = window.confirm(`Auto-generate timetable for Year ${section.year} Sec ${section.section}?\nExisting slots will be replaced.`);
+    if (!confirmed) return;
+    setAutoAssigning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-timetable", {
+        body: { year_section_id: selectedSection, department_id: deptId },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      toast.success(`Auto-assigned ${data.total_slots} slots!`);
+      // Refresh
+      const { data: refreshed } = await supabase.from("timetable_slots").select("*, subjects(name, code, is_lab), faculty(full_name, department_id)").eq("year_section_id", selectedSection);
+      if (refreshed) setSlots(refreshed);
+      const { data: all } = await supabase.from("timetable_slots").select("*");
+      if (all) setAllSlots(all);
+    } catch (err: any) {
+      toast.error(err.message || "Auto-assign failed");
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
   const getSlot = (day: number, period: number) => slots.find((s) => s.day_of_week === day && s.period_number === period);
   const getTimeLabel = (idx: number) => {
     const t = periodTimings[idx];
     return t ? `${t.start}-${t.end}` : DEFAULT_TIMES[idx];
   };
 
-  // Combine dept faculty + cross-dept faculty for selection
   const availableFaculty = allFaculty;
 
   if (!deptId) return <div className="flex items-center justify-center h-64 text-muted-foreground">You are not assigned as HOD.</div>;
@@ -183,9 +209,15 @@ export default function HodTimetablePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div><h1 className="text-2xl font-bold tracking-tight">Department Timetable</h1><p className="text-muted-foreground">Manage timetable for your department sections</p></div>
-        <div className="flex gap-2">
+        <div><h1 className="text-2xl font-bold tracking-tight">Department Timetable</h1><p className="text-muted-foreground">Manage timetable — manual or AI auto-assign</p></div>
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setTimingsOpen(true)}><Clock className="mr-2 h-4 w-4" />Edit Timings</Button>
+          {selectedSection && (
+            <Button onClick={handleAutoAssign} disabled={autoAssigning} size="sm">
+              {autoAssigning ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
+              Auto-Assign
+            </Button>
+          )}
           <Select value={selectedSection} onValueChange={setSelectedSection}>
             <SelectTrigger className="w-64"><SelectValue placeholder="Select Section" /></SelectTrigger>
             <SelectContent>{yearSections.map((ys) => <SelectItem key={ys.id} value={ys.id}>Year {ys.year} Sec {ys.section}</SelectItem>)}</SelectContent>
