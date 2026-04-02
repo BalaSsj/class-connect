@@ -13,7 +13,31 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI not configured");
 
-    const { subject_id, faculty_id } = await req.json();
+    const body = await req.json();
+    const { subject_id, faculty_id, action } = body;
+
+    // Daily teaching tips action
+    if (action === "daily-tips") {
+      const { faculty_name, today_subjects, syllabus_info, periods_count } = body;
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: "You are a helpful academic teaching assistant. Provide brief, practical teaching tips." },
+            { role: "user", content: `Faculty: ${faculty_name}\nClasses today: ${periods_count} periods\nSubjects: ${(today_subjects || []).join(", ")}\n${syllabus_info || ""}\n\nGive 3-4 concise, practical teaching tips for today. Focus on engagement, time management, and syllabus progress. Keep it under 150 words total.` },
+          ],
+        }),
+      });
+      if (!aiResponse.ok) throw new Error("AI request failed");
+      const aiData = await aiResponse.json();
+      const tips = aiData.choices?.[0]?.message?.content || "Focus on interactive teaching today.";
+      return new Response(JSON.stringify({ tips }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!subject_id) throw new Error("Missing subject_id");
 
     // Get all topics for this subject
