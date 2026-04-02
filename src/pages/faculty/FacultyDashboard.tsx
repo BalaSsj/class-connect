@@ -3,8 +3,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ClipboardList, Bell, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, ClipboardList, Bell, BookOpen, Brain, Loader2, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const PERIOD_TIMES = ["9:00-9:50", "9:50-10:40", "10:50-11:40", "11:40-12:30", "1:30-2:20", "2:20-3:10", "3:10-4:00"];
@@ -15,15 +17,18 @@ export default function FacultyDashboard() {
   const [todaySlots, setTodaySlots] = useState<any[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [subjectsHandling, setSubjectsHandling] = useState<any[]>([]);
+  const [aiTips, setAiTips] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data: f } = await supabase.from("faculty").select("*").eq("user_id", user.id).single();
+      const { data: f } = await supabase.from("faculty").select("*, departments(name)").eq("user_id", user.id).single();
       if (!f) return;
       setFaculty(f);
-      const today = new Date().getDay(); // 0=Sun, 1=Mon...
-      const dayOfWeek = today === 0 ? 7 : today; // Map to 1-6, 7=Sun
+      const today = new Date().getDay();
+      const dayOfWeek = today === 0 ? 7 : today;
       const { data: slots } = await supabase
         .from("timetable_slots")
         .select("*, subjects(name, code, is_lab), years_sections(year, section, departments(name))")
@@ -37,9 +42,55 @@ export default function FacultyDashboard() {
 
       const { count: nc } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false);
       setUnreadNotifs(nc || 0);
+
+      // Get subjects handling
+      const { data: fs } = await supabase
+        .from("faculty_subjects")
+        .select("subjects(name, code, is_lab)")
+        .eq("faculty_id", f.id);
+      if (fs) setSubjectsHandling(fs.map((x: any) => x.subjects).filter(Boolean));
     };
     load();
   }, [user]);
+
+  const getAiTips = async () => {
+    if (!faculty) return;
+    setAiLoading(true);
+    try {
+      const todaySubjects = [...new Set(todaySlots.map(s => s.subjects?.name).filter(Boolean))];
+      // Get syllabus progress for today's subjects
+      const subjectIds = [...new Set(todaySlots.map(s => s.subject_id))];
+      let syllabusProgress = "";
+      if (subjectIds.length > 0) {
+        const { data: topics } = await supabase
+          .from("syllabus_topics")
+          .select("title, is_covered, unit_number, subject_id, subjects(name)")
+          .in("subject_id", subjectIds)
+          .order("topic_number");
+        if (topics && topics.length > 0) {
+          const covered = topics.filter(t => t.is_covered).length;
+          syllabusProgress = `Syllabus: ${covered}/${topics.length} topics covered. Next uncovered: ${topics.filter(t => !t.is_covered).slice(0, 3).map(t => `${(t as any).subjects?.name}: ${t.title}`).join("; ")}`;
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke("ai-syllabus-predict", {
+        body: {
+          action: "daily-tips",
+          faculty_name: faculty.full_name,
+          today_subjects: todaySubjects,
+          syllabus_info: syllabusProgress,
+          periods_count: todaySlots.length,
+        },
+      });
+      if (error) throw error;
+      setAiTips(data?.tips || data?.predictions?.[0]?.teaching_strategy || "Focus on interactive teaching methods today.");
+    } catch (err: any) {
+      toast.error("Could not get AI tips");
+      setAiTips("Focus on interactive teaching and ensure student engagement for each period.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const todayName = DAYS[new Date().getDay() - 1] || "Sunday";
 
@@ -50,10 +101,11 @@ export default function FacultyDashboard() {
         <p className="text-muted-foreground">Your schedule and updates for {todayName}</p>
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {[
           { label: "Classes Today", value: todaySlots.length, icon: Calendar, color: "text-primary" },
-          { label: "Pending Leaves", value: pendingLeaves, icon: ClipboardList, color: "text-warning" },
+          { label: "Subjects Handling", value: subjectsHandling.length, icon: BookOpen, color: "text-emerald-500" },
+          { label: "Pending Leaves", value: pendingLeaves, icon: ClipboardList, color: "text-yellow-500" },
           { label: "Unread Notifications", value: unreadNotifs, icon: Bell, color: "text-destructive" },
         ].map((c, i) => (
           <motion.div key={c.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
@@ -68,11 +120,59 @@ export default function FacultyDashboard() {
         ))}
       </div>
 
+      {/* Subjects Handling */}
+      {subjectsHandling.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" />My Subjects</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {subjectsHandling.map((s: any, i: number) => (
+                  <Badge key={i} variant="secondary" className="text-xs py-1 px-2">
+                    {s.code} — {s.name} {s.is_lab ? "🧪" : ""}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* AI Daily Tips */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Brain className="h-4 w-4 text-primary" /> AI Teaching Assistant
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={getAiTips} disabled={aiLoading || todaySlots.length === 0}>
+                {aiLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Lightbulb className="h-3 w-3 mr-1" />}
+                Get Tips
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {aiTips ? (
+              <p className="text-sm whitespace-pre-line">{aiTips}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {todaySlots.length === 0
+                  ? "No classes today — enjoy your free day!"
+                  : "Click 'Get Tips' for AI-powered teaching recommendations based on your schedule and syllabus progress."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpen className="h-4 w-4" /> Today's Schedule — {todayName}
+              <Calendar className="h-4 w-4" /> Today's Schedule — {todayName}
             </CardTitle>
           </CardHeader>
           <CardContent>
