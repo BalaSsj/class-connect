@@ -34,18 +34,23 @@ Deno.serve(async (req) => {
     const deptId = department_id || ysData.department_id;
     const semester = ysData.year; // year acts as semester indicator
 
-    // Get subjects for this department matching the year/semester of the section
-    let subjectsQuery = supabase
+    // Get subjects for this department, prefer matching year, fallback to all
+    let { data: subjects } = await supabase
       .from("subjects")
       .select("*")
-      .eq("department_id", deptId);
+      .eq("department_id", deptId)
+      .eq("year", ysData.year)
+      .order("name");
     
-    // Filter by year if available
-    if (ysData.year) {
-      subjectsQuery = subjectsQuery.eq("year", ysData.year);
+    // Fallback: if no subjects match the year, use all dept subjects
+    if (!subjects || subjects.length === 0) {
+      const fallback = await supabase
+        .from("subjects")
+        .select("*")
+        .eq("department_id", deptId)
+        .order("name");
+      subjects = fallback.data;
     }
-    
-    const { data: subjects } = await subjectsQuery.order("name");
 
     if (!subjects || subjects.length === 0) {
       return new Response(JSON.stringify({ error: "No subjects found for this department" }), {
