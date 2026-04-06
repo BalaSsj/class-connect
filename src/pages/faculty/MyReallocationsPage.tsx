@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shuffle, BookOpen, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
+import { Shuffle, BookOpen, Clock, ArrowRight, XCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -14,56 +15,71 @@ export default function MyReallocationsPage() {
   const [faculty, setFaculty] = useState<any>(null);
   const [reallocations, setReallocations] = useState<any[]>([]);
   const [topicsToCover, setTopicsToCover] = useState<Record<string, any[]>>({});
+  const [rejecting, setRejecting] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!user) return;
-    const load = async () => {
-      const { data: f } = await supabase.from("faculty").select("id").eq("user_id", user.id).single();
-      if (!f) return;
-      setFaculty(f);
+    const { data: f } = await supabase.from("faculty").select("id").eq("user_id", user.id).single();
+    if (!f) return;
+    setFaculty(f);
 
-      // Get reallocations where I'm the substitute
-      const { data: reallocs } = await supabase
-        .from("reallocations")
-        .select(`
-          *,
-          original:faculty!reallocations_original_faculty_id_fkey(full_name),
-          timetable_slots(period_number, day_of_week, subject_id, subjects(name, code))
-        `)
-        .eq("substitute_faculty_id", f.id)
-        .eq("status", "approved")
-        .order("reallocation_date", { ascending: true });
+    const { data: reallocs } = await supabase
+      .from("reallocations")
+      .select(`
+        *,
+        original:faculty!reallocations_original_faculty_id_fkey(full_name),
+        timetable_slots(period_number, day_of_week, subject_id, subjects(name, code))
+      `)
+      .eq("substitute_faculty_id", f.id)
+      .eq("status", "approved")
+      .order("reallocation_date", { ascending: true });
 
-      if (reallocs) {
-        setReallocations(reallocs);
-
-        // For each subject, get next uncovered topics
-        const subjectIds = [...new Set(reallocs.map((r) => r.timetable_slots?.subject_id).filter(Boolean))];
-        const topicsMap: Record<string, any[]> = {};
-
-        for (const subjectId of subjectIds) {
-          const { data: topics } = await supabase
-            .from("syllabus_topics")
-            .select("*")
-            .eq("subject_id", subjectId)
-            .eq("is_covered", false)
-            .order("unit_number")
-            .order("topic_number")
-            .limit(3);
-          if (topics) topicsMap[subjectId] = topics;
-        }
-
-        setTopicsToCover(topicsMap);
+    if (reallocs) {
+      setReallocations(reallocs);
+      const subjectIds = [...new Set(reallocs.map((r) => r.timetable_slots?.subject_id).filter(Boolean))];
+      const topicsMap: Record<string, any[]> = {};
+      for (const subjectId of subjectIds) {
+        const { data: topics } = await supabase
+          .from("syllabus_topics")
+          .select("*")
+          .eq("subject_id", subjectId)
+          .eq("is_covered", false)
+          .order("unit_number")
+          .order("topic_number")
+          .limit(3);
+        if (topics) topicsMap[subjectId] = topics;
       }
-    };
-    load();
-  }, [user]);
+      setTopicsToCover(topicsMap);
+    }
+  };
+
+  useEffect(() => { loadData(); }, [user]);
+
+  const handleReject = async (reallocationId: string) => {
+    setRejecting(reallocationId);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-reallocate", {
+        body: { reject_reallocation_id: reallocationId },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(data.message || "Reassigned to another faculty");
+      } else {
+        toast.warning(data?.message || "No substitute found");
+      }
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject");
+    } finally {
+      setRejecting(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">My Substitutions</h1>
-        <p className="text-muted-foreground">Classes you're covering and what to teach next</p>
+        <p className="text-muted-foreground">Classes you're covering — reject if unavailable</p>
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -79,6 +95,7 @@ export default function MyReallocationsPage() {
             {reallocations.map((r) => {
               const subjectId = r.timetable_slots?.subject_id;
               const nextTopics = subjectId ? topicsToCover[subjectId] || [] : [];
+              const isRejecting = rejecting === r.id;
 
               return (
                 <Card key={r.id} className="border-primary/20">
@@ -88,7 +105,18 @@ export default function MyReallocationsPage() {
                         <Shuffle className="h-4 w-4 text-primary" />
                         Substituting for {r.original?.full_name}
                       </CardTitle>
-                      <Badge variant="default">{r.reallocation_date}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">{r.reallocation_date}</Badge>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={isRejecting}
+                          onClick={() => handleReject(r.id)}
+                        >
+                          {isRejecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                          {isRejecting ? "Reassigning..." : "Can't Attend"}
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -102,7 +130,6 @@ export default function MyReallocationsPage() {
                       </span>
                     </div>
 
-                    {/* What to cover next */}
                     {nextTopics.length > 0 && (
                       <div className="bg-muted/50 rounded-lg p-3 space-y-2">
                         <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -117,8 +144,8 @@ export default function MyReallocationsPage() {
                       </div>
                     )}
 
-                    {nextTopics.length === 0 && subjectId && (
-                      <p className="text-xs text-muted-foreground italic">No syllabus topics added for this subject yet.</p>
+                    {r.notes && (
+                      <p className="text-xs text-muted-foreground italic">{r.notes}</p>
                     )}
                   </CardContent>
                 </Card>

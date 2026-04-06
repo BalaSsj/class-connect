@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, UserPlus, KeyRound, Pencil, Filter } from "lucide-react";
+import { Plus, Trash2, Users, UserPlus, KeyRound, Pencil, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function FacultyPage() {
@@ -26,13 +26,16 @@ export default function FacultyPage() {
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", employee_id: "", department_id: "",
     designation: "Assistant Professor", lab_qualified: false, is_hod: false, max_periods_per_day: "6",
-    create_account: false, password: "", role: "faculty" as string,
+    create_account: false, password: "", role: "faculty" as string, expertise: [] as string[],
   });
   const [editForm, setEditForm] = useState({
     full_name: "", email: "", phone: "", department_id: "",
     designation: "Assistant Professor", lab_qualified: false, is_hod: false, max_periods_per_day: "6",
+    expertise: [] as string[],
   });
   const [regForm, setRegForm] = useState({ password: "", role: "faculty" });
+  const [skillInput, setSkillInput] = useState("");
+  const [editSkillInput, setEditSkillInput] = useState("");
 
   const fetchAll = async () => {
     const [f, d] = await Promise.all([
@@ -47,6 +50,30 @@ export default function FacultyPage() {
 
   const filtered = filterDept === "all" ? faculty : faculty.filter((f) => f.department_id === filterDept);
 
+  const addSkill = (skill: string, target: "create" | "edit") => {
+    const trimmed = skill.trim();
+    if (!trimmed) return;
+    if (target === "create") {
+      if (!form.expertise.includes(trimmed)) {
+        setForm({ ...form, expertise: [...form.expertise, trimmed] });
+      }
+      setSkillInput("");
+    } else {
+      if (!editForm.expertise.includes(trimmed)) {
+        setEditForm({ ...editForm, expertise: [...editForm.expertise, trimmed] });
+      }
+      setEditSkillInput("");
+    }
+  };
+
+  const removeSkill = (skill: string, target: "create" | "edit") => {
+    if (target === "create") {
+      setForm({ ...form, expertise: form.expertise.filter(s => s !== skill) });
+    } else {
+      setEditForm({ ...editForm, expertise: editForm.expertise.filter(s => s !== skill) });
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -55,6 +82,7 @@ export default function FacultyPage() {
       employee_id: form.employee_id, department_id: form.department_id,
       designation: form.designation, lab_qualified: form.lab_qualified,
       is_hod: form.is_hod, max_periods_per_day: parseInt(form.max_periods_per_day),
+      expertise: form.expertise.length > 0 ? form.expertise : null,
     }).select().single();
     if (error) { toast.error(error.message); setLoading(false); return; }
     if (form.create_account && form.password && newFaculty) {
@@ -67,7 +95,7 @@ export default function FacultyPage() {
       toast.success("Faculty added (no login account)");
     }
     setLoading(false);
-    setForm({ full_name: "", email: "", phone: "", employee_id: "", department_id: "", designation: "Assistant Professor", lab_qualified: false, is_hod: false, max_periods_per_day: "6", create_account: false, password: "", role: "faculty" });
+    setForm({ full_name: "", email: "", phone: "", employee_id: "", department_id: "", designation: "Assistant Professor", lab_qualified: false, is_hod: false, max_periods_per_day: "6", create_account: false, password: "", role: "faculty", expertise: [] });
     setOpen(false); fetchAll();
   };
 
@@ -80,6 +108,7 @@ export default function FacultyPage() {
       department_id: editForm.department_id, designation: editForm.designation,
       lab_qualified: editForm.lab_qualified, is_hod: editForm.is_hod,
       max_periods_per_day: parseInt(String(editForm.max_periods_per_day)),
+      expertise: editForm.expertise.length > 0 ? editForm.expertise : null,
     }).eq("id", selectedFaculty.id);
     setLoading(false);
     if (error) { toast.error(error.message); return; }
@@ -94,7 +123,9 @@ export default function FacultyPage() {
       department_id: f.department_id, designation: f.designation,
       lab_qualified: f.lab_qualified, is_hod: f.is_hod,
       max_periods_per_day: String(f.max_periods_per_day),
+      expertise: f.expertise || [],
     });
+    setEditSkillInput("");
     setEditOpen(true);
   };
 
@@ -122,12 +153,44 @@ export default function FacultyPage() {
     else { toast.success(currentStatus ? "Faculty deactivated" : "Faculty activated"); fetchAll(); }
   };
 
+  const SkillTagInput = ({ skills, input, setInput, target }: { skills: string[]; input: string; setInput: (v: string) => void; target: "create" | "edit" }) => (
+    <div className="space-y-2">
+      <Label>Skills / Expertise</Label>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {skills.map((s, i) => (
+          <Badge key={i} variant="secondary" className="text-xs gap-1">
+            {s}
+            <button type="button" onClick={() => removeSkill(s, target)} className="ml-1 hover:text-destructive">
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="e.g. Python, Java, DBMS, ML..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              addSkill(input, target);
+            }
+          }}
+          className="flex-1"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={() => addSkill(input, target)}>Add</Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">Press Enter or comma to add. Used for AI timetable matching.</p>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Faculty Management</h1>
-          <p className="text-muted-foreground">Manage faculty profiles, login accounts, and assignments</p>
+          <p className="text-muted-foreground">Manage faculty profiles, skills, and login accounts</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -193,6 +256,7 @@ export default function FacultyPage() {
                     <Label>Is HOD</Label>
                   </div>
                 </div>
+                <SkillTagInput skills={form.expertise} input={skillInput} setInput={setSkillInput} target="create" />
                 <div className="border-t border-border pt-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Switch checked={form.create_account} onCheckedChange={(v) => setForm({ ...form, create_account: v })} />
@@ -245,7 +309,7 @@ export default function FacultyPage() {
                       <TableHead>Employee ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Department</TableHead>
-                      <TableHead>Designation</TableHead>
+                      <TableHead>Skills</TableHead>
                       <TableHead>Login</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-28">Actions</TableHead>
@@ -258,9 +322,18 @@ export default function FacultyPage() {
                         <TableCell className="font-medium">
                           {f.full_name}
                           {f.is_hod && <Badge className="ml-2" variant="outline">HOD</Badge>}
+                          <div className="text-[10px] text-muted-foreground">{f.designation}</div>
                         </TableCell>
                         <TableCell>{(f.departments as any)?.name}</TableCell>
-                        <TableCell>{f.designation}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {(f.expertise || []).slice(0, 4).map((s: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">{s}</Badge>
+                            ))}
+                            {(f.expertise || []).length > 4 && <Badge variant="outline" className="text-[10px]">+{f.expertise.length - 4}</Badge>}
+                            {(!f.expertise || f.expertise.length === 0) && <span className="text-xs text-muted-foreground">—</span>}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {f.user_id ? (
                             <Badge variant="default" className="text-xs">Active</Badge>
@@ -348,6 +421,7 @@ export default function FacultyPage() {
                 <Label>Is HOD</Label>
               </div>
             </div>
+            <SkillTagInput skills={editForm.expertise} input={editSkillInput} setInput={setEditSkillInput} target="edit" />
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Saving..." : "Save Changes"}
             </Button>
