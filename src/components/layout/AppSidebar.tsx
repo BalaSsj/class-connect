@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Building2, Users, BookOpen, Calendar, GraduationCap,
   ClipboardList, Shuffle, Bell, LogOut, Layers, FlaskConical,
-  User, BarChart3, Brain, Megaphone, FileText, ClipboardCheck,
+  User, BarChart3, Brain, Megaphone, FileText, ClipboardCheck, CalendarDays,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
