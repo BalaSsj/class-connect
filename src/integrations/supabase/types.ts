@@ -295,6 +295,41 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          holiday_date: string
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          holiday_date: string
+          id?: string
+          name: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          holiday_date?: string
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_manuals: {
         Row: {
           created_at: string
