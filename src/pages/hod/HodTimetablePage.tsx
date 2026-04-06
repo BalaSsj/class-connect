@@ -244,11 +244,17 @@ export default function HodTimetablePage() {
                     <tr key={day}>
                       <td className="border border-border p-2 font-medium text-sm bg-muted/50">{day}</td>
                       {PERIODS.map((period) => {
+                        const isIA = dayIdx === 0 && (period === 1 || period === 2);
                         const slot = getSlot(dayIdx + 1, period);
                         const isCrossDept = slot && slot.faculty?.department_id && slot.faculty.department_id !== deptId;
                         return (
-                          <td key={period} className="border border-border p-1 cursor-pointer hover:bg-accent/50 transition-colors h-16" onClick={() => handleCellClick(dayIdx + 1, period)}>
-                            {slot ? (
+                          <td key={period} className={`border border-border p-1 ${isIA ? 'bg-amber-50 dark:bg-amber-900/20' : 'cursor-pointer hover:bg-accent/50'} transition-colors h-16`} onClick={() => !isIA && handleCellClick(dayIdx + 1, period)}>
+                            {isIA ? (
+                              <div className="rounded p-1.5 text-xs border border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 text-center">
+                                <div className="font-semibold">IA</div>
+                                <div className="text-[10px] opacity-75">Internal Assessment</div>
+                              </div>
+                            ) : slot ? (
                               <div className={`rounded p-1.5 text-xs border ${getSubjectColor(slot.subject_id)}`}>
                                 <div className="font-semibold truncate">{slot.subjects?.code}</div>
                                 <div className="truncate text-[10px] opacity-75">{slot.faculty?.full_name}</div>

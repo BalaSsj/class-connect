@@ -17,6 +17,7 @@ import SubjectsPage from "./pages/admin/SubjectsPage";
 import FacultyPage from "./pages/admin/FacultyPage";
 import TimetablePage from "./pages/admin/TimetablePage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import HolidaysPage from "./pages/admin/HolidaysPage";
 import HodDashboard from "./pages/hod/HodDashboard";
 import LeaveRequestsPage from "./pages/hod/LeaveRequestsPage";
 import ReallocationPage from "./pages/hod/ReallocationPage";
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="/admin/faculty" element={<FacultyPage />} />
               <Route path="/admin/faculty-directory" element={<FacultyFilterPage />} />
               <Route path="/admin/timetable" element={<TimetablePage />} />
+              <Route path="/admin/holidays" element={<HolidaysPage />} />
               <Route path="/admin/analytics" element={<AnalyticsPage />} />
             </Route>
 

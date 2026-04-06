@@ -55,7 +55,6 @@ export default function LeaveRequestsPage() {
   };
 
   const triggerReallocation = async (leaveId: string) => {
-    // Find affected timetable slots
     const leave = requests.find((r) => r.id === leaveId);
     if (!leave) return;
 
@@ -69,15 +68,18 @@ export default function LeaveRequestsPage() {
       return;
     }
 
-    // Call AI reallocation edge function
+    toast.loading("AI is auto-assigning substitutes...", { id: "reallocate" });
+
     const res = await supabase.functions.invoke("ai-reallocate", {
       body: { leave_request_id: leaveId, faculty_id: leave.faculty_id, start_date: leave.start_date, end_date: leave.end_date },
     });
 
+    toast.dismiss("reallocate");
+
     if (res.error) {
       toast.error("Reallocation failed: " + res.error.message);
     } else {
-      toast.success(`AI generated ${res.data?.count || 0} reallocation suggestions!`);
+      toast.success(res.data?.message || `Auto-assigned ${res.data?.count || 0} substitutions!`);
     }
   };
 
