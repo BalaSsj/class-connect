@@ -19,6 +19,7 @@ const adminLinks = [
   { title: "Faculty", url: "/admin/faculty", icon: Users },
   { title: "Faculty Directory", url: "/admin/faculty-directory", icon: GraduationCap },
   { title: "Timetable", url: "/admin/timetable", icon: Calendar },
+  { title: "Holidays", url: "/admin/holidays", icon: CalendarDays },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
