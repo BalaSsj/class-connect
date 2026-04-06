@@ -17,6 +17,7 @@ import SubjectsPage from "./pages/admin/SubjectsPage";
 import FacultyPage from "./pages/admin/FacultyPage";
 import TimetablePage from "./pages/admin/TimetablePage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import HolidaysPage from "./pages/admin/HolidaysPage";
 import HodDashboard from "./pages/hod/HodDashboard";
 import LeaveRequestsPage from "./pages/hod/LeaveRequestsPage";
 import ReallocationPage from "./pages/hod/ReallocationPage";
