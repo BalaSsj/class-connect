@@ -507,6 +507,89 @@ export default function FacultyPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-warning" />
+              Reset Password — {selectedFaculty?.full_name}
+            </DialogTitle>
+          </DialogHeader>
+          {lastIssuedPwd ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 space-y-2">
+                <p className="text-xs font-medium text-warning-foreground">
+                  ⚠️ Password set successfully. Copy it now — for security, hashed passwords cannot be retrieved later.
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 rounded bg-background font-mono text-sm break-all">{lastIssuedPwd}</code>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastIssuedPwd);
+                      toast.success("Copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Email: <span className="font-mono">{selectedFaculty?.email}</span>
+                </p>
+              </div>
+              <Button className="w-full" onClick={() => setPwdOpen(false)}>Done</Button>
+            </div>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="text-xs text-muted-foreground rounded-md bg-muted p-3">
+                For security, stored passwords are hashed and cannot be displayed. Set a new password below — it will be shown to you once so you can share it with the faculty.
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={selectedFaculty?.email || ""} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>New Password</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      value={pwdForm.password}
+                      onChange={(e) => setPwdForm({ password: e.target.value })}
+                      minLength={6}
+                      required
+                      className="pr-10 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd(!showPwd)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPwdForm({ password: generatePassword() })}
+                    title="Generate"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={pwdLoading}>
+                {pwdLoading ? "Resetting..." : "Reset Password"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
