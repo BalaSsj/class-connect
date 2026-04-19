@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, UserPlus, KeyRound, Pencil, Filter, X } from "lucide-react";
+import { Plus, Trash2, Users, UserPlus, KeyRound, Pencil, Filter, X, Eye, EyeOff, Copy, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function FacultyPage() {
@@ -36,6 +36,49 @@ export default function FacultyPage() {
   const [regForm, setRegForm] = useState({ password: "", role: "faculty" });
   const [skillInput, setSkillInput] = useState("");
   const [editSkillInput, setEditSkillInput] = useState("");
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ password: "" });
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(true);
+  const [lastIssuedPwd, setLastIssuedPwd] = useState<string | null>(null);
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let p = "";
+    for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    return p;
+  };
+
+  const openPwdReset = (f: any) => {
+    setSelectedFaculty(f);
+    setPwdForm({ password: generatePassword() });
+    setLastIssuedPwd(null);
+    setShowPwd(true);
+    setPwdOpen(true);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFaculty) return;
+    setPwdLoading(true);
+    const res = await supabase.functions.invoke("register-user", {
+      body: {
+        email: selectedFaculty.email,
+        password: pwdForm.password,
+        full_name: selectedFaculty.full_name,
+        role: selectedFaculty.is_hod ? "hod" : "faculty",
+        faculty_id: selectedFaculty.id,
+      },
+    });
+    setPwdLoading(false);
+    if (res.error) {
+      toast.error(res.error.message);
+    } else {
+      setLastIssuedPwd(pwdForm.password);
+      toast.success(`Password reset for ${selectedFaculty.full_name}. Save it now — it cannot be retrieved later.`);
+      fetchAll();
+    }
+  };
 
   const fetchAll = async () => {
     const [f, d] = await Promise.all([
@@ -354,10 +397,15 @@ export default function FacultyPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(f)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(f)} title="Edit">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}>
+                            {f.user_id && (
+                              <Button variant="ghost" size="icon" onClick={() => openPwdReset(f)} title="Reset password">
+                                <KeyRound className="h-4 w-4 text-warning" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)} title="Delete">
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
