@@ -48,6 +48,19 @@ Deno.serve(async (req) => {
 
   // ===== Faculty confirms "I am Free" =====
   if (confirm_reallocation_id) {
+    // Load this reallocation to know its slot+date
+    const { data: confirmed, error: loadErr } = await supabase
+      .from("reallocations")
+      .select("id, timetable_slot_id, reallocation_date, substitute_faculty_id")
+      .eq("id", confirm_reallocation_id)
+      .single();
+    if (loadErr || !confirmed) {
+      return new Response(JSON.stringify({ error: loadErr?.message || "Not found" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Approve this one
     const { error } = await supabase
       .from("reallocations")
       .update({ status: "approved", notes: "Confirmed by substitute (I am Free)" })
@@ -57,9 +70,40 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ success: true, message: "Assignment confirmed" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+    // Remove all OTHER pending suggestions for the same slot+date (no duplicates)
+    const { data: others } = await supabase
+      .from("reallocations")
+      .select("id, substitute_faculty_id")
+      .eq("timetable_slot_id", confirmed.timetable_slot_id)
+      .eq("reallocation_date", confirmed.reallocation_date)
+      .eq("status", "pending")
+      .neq("id", confirm_reallocation_id);
+
+    if (others && others.length > 0) {
+      const otherIds = others.map((o: any) => o.id);
+      await supabase.from("reallocations").delete().in("id", otherIds);
+
+      // Notify those faculty their pending request was cancelled
+      const subIds = [...new Set(others.map((o: any) => o.substitute_faculty_id))];
+      const { data: facs } = await supabase
+        .from("faculty").select("user_id").in("id", subIds);
+      for (const f of facs || []) {
+        if (f.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: f.user_id,
+            title: "✅ Substitution Filled",
+            message: "A pending substitution request has been cancelled — another faculty confirmed availability.",
+            type: "info",
+          });
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Assignment confirmed. ${others?.length || 0} duplicate suggestion(s) removed.`,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   // ===== Faculty selects "Not Free" — reject with reason and reassign =====
