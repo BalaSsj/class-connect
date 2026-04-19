@@ -4,8 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shuffle, BookOpen, Clock, ArrowRight, XCircle, Loader2 } from "lucide-react";
+import { Shuffle, BookOpen, Clock, ArrowRight, XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -15,7 +18,10 @@ export default function MyReallocationsPage() {
   const [faculty, setFaculty] = useState<any>(null);
   const [reallocations, setReallocations] = useState<any[]>([]);
   const [topicsToCover, setTopicsToCover] = useState<Record<string, any[]>>({});
-  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadData = async () => {
     if (!user) return;
@@ -31,7 +37,7 @@ export default function MyReallocationsPage() {
         timetable_slots(period_number, day_of_week, subject_id, subjects(name, code))
       `)
       .eq("substitute_faculty_id", f.id)
-      .eq("status", "approved")
+      .in("status", ["pending", "approved"])
       .order("reallocation_date", { ascending: true });
 
     if (reallocs) {
@@ -55,23 +61,47 @@ export default function MyReallocationsPage() {
 
   useEffect(() => { loadData(); }, [user]);
 
-  const handleReject = async (reallocationId: string) => {
-    setRejecting(reallocationId);
+  const handleConfirm = async (reallocationId: string) => {
+    setBusyId(reallocationId);
     try {
       const { data, error } = await supabase.functions.invoke("ai-reallocate", {
-        body: { reject_reallocation_id: reallocationId },
+        body: { confirm_reallocation_id: reallocationId },
       });
       if (error) throw error;
-      if (data?.success) {
-        toast.success(data.message || "Reassigned to another faculty");
-      } else {
-        toast.warning(data?.message || "No substitute found");
-      }
+      if (data?.success) toast.success("Confirmed — you're set!");
+      else toast.warning(data?.message || "Could not confirm");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to confirm");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openReject = (r: any) => {
+    setRejectTarget(r);
+    setRejectReason("");
+    setRejectDialogOpen(true);
+  };
+
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    setBusyId(rejectTarget.id);
+    setRejectDialogOpen(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-reallocate", {
+        body: { reject_reallocation_id: rejectTarget.id, reason: rejectReason },
+      });
+      if (error) throw error;
+      if (data?.success) toast.success(data.message || "Reassigned to another faculty");
+      else toast.warning(data?.message || "No substitute found");
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to reject");
     } finally {
-      setRejecting(null);
+      setBusyId(null);
+      setRejectTarget(null);
+      setRejectReason("");
     }
   };
 
@@ -79,7 +109,7 @@ export default function MyReallocationsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">My Substitutions</h1>
-        <p className="text-muted-foreground">Classes you're covering — reject if unavailable</p>
+        <p className="text-muted-foreground">Respond to each request: I am Free or Not Free</p>
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -95,27 +125,37 @@ export default function MyReallocationsPage() {
             {reallocations.map((r) => {
               const subjectId = r.timetable_slots?.subject_id;
               const nextTopics = subjectId ? topicsToCover[subjectId] || [] : [];
-              const isRejecting = rejecting === r.id;
+              const isBusy = busyId === r.id;
+              const isPending = r.status === "pending";
 
               return (
-                <Card key={r.id} className="border-primary/20">
+                <Card key={r.id} className={isPending ? "border-warning/40" : "border-primary/20"}>
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
                         <Shuffle className="h-4 w-4 text-primary" />
                         Substituting for {r.original?.full_name}
                       </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="default">{r.reallocation_date}</Badge>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={isRejecting}
-                          onClick={() => handleReject(r.id)}
-                        >
-                          {isRejecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                          {isRejecting ? "Reassigning..." : "Can't Attend"}
-                        </Button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={isPending ? "secondary" : "default"}>{r.reallocation_date}</Badge>
+                        <Badge variant={isPending ? "outline" : "default"} className="capitalize">{r.status}</Badge>
+                        {isPending && (
+                          <>
+                            <Button size="sm" disabled={isBusy} onClick={() => handleConfirm(r.id)}>
+                              {isBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle className="h-3 w-3 mr-1" />}
+                              I am Free
+                            </Button>
+                            <Button variant="destructive" size="sm" disabled={isBusy} onClick={() => openReject(r)}>
+                              <XCircle className="h-3 w-3 mr-1" /> Not Free
+                            </Button>
+                          </>
+                        )}
+                        {!isPending && (
+                          <Button variant="outline" size="sm" disabled={isBusy} onClick={() => openReject(r)}>
+                            {isBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                            Can't Attend
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -154,6 +194,30 @@ export default function MyReallocationsPage() {
           </div>
         )}
       </motion.div>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Not Free — please share a reason</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Reason (optional)</Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. I have another commitment that period"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              The system will automatically try the next available suitable faculty.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={submitReject}>Submit & Reassign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
