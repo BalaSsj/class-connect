@@ -38,15 +38,27 @@ Deno.serve(async (req) => {
       _user_id: caller.id,
       _role: "admin",
     });
+    const { data: isHod } = await supabase.rpc("has_role", {
+      _user_id: caller.id,
+      _role: "hod",
+    });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
+    if (!isAdmin && !isHod) {
+      return new Response(JSON.stringify({ error: "Admin or HOD access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { email, password, full_name, role, faculty_id } = await req.json();
+
+    // HODs can only create faculty accounts (not admins or other HODs)
+    if (!isAdmin && isHod && role !== "faculty") {
+      return new Response(JSON.stringify({ error: "HODs can only register faculty accounts" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!email || !password || !full_name || !role) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
