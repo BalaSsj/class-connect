@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClipboardList, Shuffle, Users, Calendar, TrendingUp, BookOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
+import { BirthdayBanner } from "@/components/BirthdayBanner";
 
 export default function HodDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ pendingLeaves: 0, activeReallocations: 0, activeFaculty: 0, totalSlots: 0, syllabusPct: 0 });
   const [recentLeaves, setRecentLeaves] = useState<any[]>([]);
   const [todayTopics, setTodayTopics] = useState<any[]>([]);
+  const [me, setMe] = useState<{ full_name?: string; date_of_birth?: string | null } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -34,9 +36,13 @@ export default function HodDashboard() {
       });
       if (rl.data) setRecentLeaves(rl.data);
       if (today.data) setTodayTopics(today.data);
+      if (user) {
+        const { data: f } = await supabase.from("faculty").select("full_name, date_of_birth").eq("user_id", user.id).maybeSingle();
+        if (f) setMe(f as any);
+      }
     };
     load();
-  }, []);
+  }, [user]);
 
   const cards = [
     { label: "Pending Leaves", value: stats.pendingLeaves, icon: ClipboardList, color: "text-warning" },
@@ -52,6 +58,8 @@ export default function HodDashboard() {
         <h1 className="text-2xl font-bold tracking-tight">HOD Dashboard</h1>
         <p className="text-muted-foreground">Department overview and management</p>
       </motion.div>
+
+      <BirthdayBanner name={me?.full_name} dob={me?.date_of_birth} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {cards.map((c, i) => (
