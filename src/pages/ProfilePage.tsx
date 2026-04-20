@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { User, Mail, Phone, Building2, Briefcase, Save, BookOpen, GraduationCap, Clock } from "lucide-react";
+import { User, Mail, Phone, Building2, Briefcase, Save, BookOpen, GraduationCap, Clock, Cake } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ProfilePage() {
@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [faculty, setFaculty] = useState<any>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dob, setDob] = useState("");
   const [saving, setSaving] = useState(false);
   const [handlingSubjects, setHandlingSubjects] = useState<any[]>([]);
   const [workload, setWorkload] = useState({ total: 0, maxWeekly: 0 });
@@ -35,6 +36,7 @@ export default function ProfilePage() {
       const { data: f } = await supabase.from("faculty").select("*, departments(name)").eq("user_id", user.id).single();
       if (f) {
         setFaculty(f);
+        if (f.date_of_birth) setDob(f.date_of_birth);
 
         // Get subjects this faculty handles via faculty_subjects
         const { data: fs } = await supabase
@@ -80,6 +82,9 @@ export default function ProfilePage() {
     if (!profile) return;
     setSaving(true);
     const { error } = await supabase.from("profiles").update({ full_name: fullName, phone: phone || null }).eq("id", profile.id);
+    if (faculty) {
+      await supabase.from("faculty").update({ date_of_birth: dob || null }).eq("id", faculty.id);
+    }
     setSaving(false);
     if (error) toast.error(error.message);
     else toast.success("Profile updated!");
@@ -126,6 +131,12 @@ export default function ProfilePage() {
                 <Label className="flex items-center gap-1"><Phone className="h-3 w-3" />Phone</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="9876543210" />
               </div>
+              {faculty && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1"><Cake className="h-3 w-3" />Date of Birth</Label>
+                  <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                </div>
+              )}
               {faculty && (
                 <>
                   <div className="space-y-2">
