@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, ClipboardList, Bell, BookOpen, Brain, Loader2, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { BirthdayBanner } from "@/components/BirthdayBanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const PERIOD_TIMES = ["9:00-9:50", "9:50-10:40", "10:50-11:40", "11:40-12:30", "1:30-2:20", "2:20-3:10", "3:10-4:00"];
@@ -100,6 +101,8 @@ export default function FacultyDashboard() {
         <h1 className="text-2xl font-bold tracking-tight">Welcome{faculty ? `, ${faculty.full_name}` : ""}</h1>
         <p className="text-muted-foreground">Your schedule and updates for {todayName}</p>
       </motion.div>
+
+      <BirthdayBanner name={faculty?.full_name} dob={faculty?.date_of_birth} />
 
       <div className="grid gap-4 md:grid-cols-4">
         {[

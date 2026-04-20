@@ -203,6 +203,7 @@ export type Database = {
       faculty: {
         Row: {
           created_at: string
+          date_of_birth: string | null
           department_id: string
           designation: string
           email: string
@@ -220,6 +221,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          date_of_birth?: string | null
           department_id: string
           designation?: string
           email: string
@@ -237,6 +239,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          date_of_birth?: string | null
           department_id?: string
           designation?: string
           email?: string
